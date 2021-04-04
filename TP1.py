@@ -2,8 +2,9 @@ from tqdm import tqdm
 from math import floor
 import numpy as np
 import numpy.linalg as la
-from scipy.linalg import sqrtm
+# from scipy.linalg import sqrtm
 import matplotlib.pyplot as plt
+import tikzplotlib
 
 
 def compute_R_N(N, prop=[1 / 3, 1 / 3, 1 / 3]):
@@ -40,7 +41,9 @@ def exo1():
 
 	# plt.scatter(y=np.linspace(0, 0, len(eig_vals)), x=eig_vals)
 	plt.hist(eig_vals, bins=50, density=True)
-	plt.show()
+	# plt.show()
+	tikzplotlib.save('exo1_plots.tex')
+
 
 
 def exo2():
@@ -102,6 +105,7 @@ def exo2():
 	# plt.title("fonction $f$")
 	# plt.show()
 	# plot x
+	plt.figure(figsize=(16, 8))
 	nb_points = 100
 	ε = 5e-2
 	abscisses = np.array([])
@@ -126,7 +130,7 @@ def exo2():
 
 	values_of_t_and_x = values_of_t_and_x[:, (values_of_t_and_x[1, :] != None)]
 	assert len(values_of_t_and_x.shape) == 2
-	print(f"{values_of_t_and_x.shape=}")
+	# print(f"{values_of_t_and_x.shape=}")
 	# values_of_t_and_x =
 	plt.plot(values_of_t_and_x[0],
 			 values_of_t_and_x[1],
@@ -142,7 +146,7 @@ def exo2():
 	# trouver où la fonction est croissante
 	dérivée_discrète = np.diff(values_of_t_and_x[1, (values_of_t_and_x[0, :] < unique_true_eig_vals[0])])
 	values_of_t_and_x = values_of_t_and_x[:, 1:]
-	print(f"{(dérivée_discrète>0).shape=}")
+	# print(f"{(dérivée_discrète>0).shape=}")
 	ind_croissance = dérivée_discrète > 0  # values_of_t_and_x[0, dérivée_discrète > 0]
 	# C = abscisses_dérivée_discrète_croissante  # + 1 / unique_true_eig_vals.reshape(-1, 1)
 	# ind = np.repeat(True, len(ind_dérivée_discrète_croissante))
@@ -159,13 +163,12 @@ def exo2():
 	# 	np.logical_or(C < small_eps, C > small_eps)
 	# )[0]
 	# ind_dérivée_discrète_croissante = ind_dérivée_discrète_croissante[ind]
-
 	plt.scatter(values_of_t_and_x[0, ind_croiss_dom_déf], [0] * np.sum(ind_croiss_dom_déf),
 				color="purple",
 				label="valeurs de $t$ pour lesquelles $x$ est croissante")
 	plt.scatter([0] * np.sum(ind_croiss_dom_déf),
 				values_of_t_and_x[1, ind_croiss_dom_déf],
-				color="navy",
+				color="lime",
 				label="valeurs de $x$ pour lesquelles $x$ est croissante")
 	plt.legend()
 	# print(f"{ind_dérivée_discrète_croissante=}")
@@ -181,7 +184,8 @@ def exo2():
 	# 					   )
 	# dérivée_discrète = np.diff(values_of_t_and_x[1, values_of_t_and_x[0, :] < unique_true_eig_vals[-1]])
 	# print()
-	plt.show()
+	# plt.show()
+	tikzplotlib.save('exo2_plots.tex')
 	return
 
 
@@ -220,7 +224,7 @@ def exo3():
 		assert len(eigvals_matrix_g) == n
 		# print(f"{eigvals_matrix_g=}")
 		# print(f"{eig_vals_Σ_star_Σ=}")
-		assert (eigvals_matrix_g <= eig_vals_Σ_star_Σ).all()
+		assert np.all(eigvals_matrix_g <= eig_vals_Σ_star_Σ)
 		diff_eig_vals = eig_vals_Σ_star_Σ - eigvals_matrix_g
 
 		# print(f"{diff_eig_vals}")
@@ -252,7 +256,9 @@ def exo3():
 	plt.plot(ls_N,
 			 ls_EQM,
 			 ".-")
-	plt.show()
+	# plt.show()
+	tikzplotlib.save('exo3_plots.tex')
+
 
 
 # print(f"{n / (N * prop[0]) * np.sum(diff_eig_vals[n-N+N1:n-N+N2])=}")
@@ -261,7 +267,7 @@ def exo3():
 
 
 def main():
-	exo3()
+	exo2()
 	return
 
 
