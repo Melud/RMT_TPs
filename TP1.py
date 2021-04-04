@@ -128,16 +128,22 @@ def exo2():
 	assert len(values_of_t_and_x.shape) == 2
 	print(f"{values_of_t_and_x.shape=}")
 	# values_of_t_and_x =
-	plt.plot(values_of_t_and_x[0], values_of_t_and_x[1], ".-", ms=3)
-	plt.title("fonction $x$")
+	plt.plot(values_of_t_and_x[0],
+			 values_of_t_and_x[1],
+			 ".-",
+			 ms=3,
+			 label="fonction $x$")
+	plt.title("fonction $x$ et considérations")
 	for eig_val in unique_true_eig_vals:
 		plt.axvline(-1 / eig_val,
-					color="red")
+					color="red",
+					# label=f"valeur propre {eig_val}"
+					)
 	# trouver où la fonction est croissante
 	dérivée_discrète = np.diff(values_of_t_and_x[1, (values_of_t_and_x[0, :] < unique_true_eig_vals[0])])
 	values_of_t_and_x = values_of_t_and_x[:, 1:]
 	print(f"{(dérivée_discrète>0).shape=}")
-	ind_croissance = dérivée_discrète>0#values_of_t_and_x[0, dérivée_discrète > 0]
+	ind_croissance = dérivée_discrète > 0  # values_of_t_and_x[0, dérivée_discrète > 0]
 	# C = abscisses_dérivée_discrète_croissante  # + 1 / unique_true_eig_vals.reshape(-1, 1)
 	# ind = np.repeat(True, len(ind_dérivée_discrète_croissante))
 	small_eps = 1e-2
@@ -154,11 +160,14 @@ def exo2():
 	# )[0]
 	# ind_dérivée_discrète_croissante = ind_dérivée_discrète_croissante[ind]
 
-	plt.scatter(values_of_t_and_x[0,ind_croiss_dom_déf], [0] * np.sum(ind_croiss_dom_déf),
-				color="purple")
+	plt.scatter(values_of_t_and_x[0, ind_croiss_dom_déf], [0] * np.sum(ind_croiss_dom_déf),
+				color="purple",
+				label="valeurs de $t$ pour lesquelles $x$ est croissante")
 	plt.scatter([0] * np.sum(ind_croiss_dom_déf),
-				values_of_t_and_x[1,ind_croiss_dom_déf],
-				color="navy")
+				values_of_t_and_x[1, ind_croiss_dom_déf],
+				color="navy",
+				label="valeurs de $x$ pour lesquelles $x$ est croissante")
+	plt.legend()
 	# print(f"{ind_dérivée_discrète_croissante=}")
 	# bounds =
 	# for beg, end in zip(np.concatenate(([-np.inf], unique_true_eig_vals)),
@@ -177,24 +186,82 @@ def exo2():
 
 
 def exo3():
-	N = 100
-	c = 1e-2
-	n = floor(N / c)
-	prop = [1 / 3, 1 / 3, 1 / 3]
-	Λ = np.diag([1] * floor(prop[0] * N) +
-				[4] * floor(prop[1] * N) +
-				[7] * (N - floor(prop[0] * N) - floor(prop[1] * N))
-				)
-	a = np.sqrt(1 / n * np.diag(Λ))
-	matrix_g = Λ - np.outer(a, a)
-	eigvals_matrix_g = np.linalg.eigvalsh(matrix_g)
+	def iteration(N=100, i=0):
+		# N = 100
+		c = 1e-1
+		n = floor(N / c)
+		# print(f"{n=},{N=}")
+		prop = [1 / 3, 1 / 3, 1 / 3]
+		N1 = 0
+		N2 = floor(N * 1 / 3)
+		N3 = floor(N * 2 / 3)
+		R_N = compute_R_N(N, prop)
+		# np.diag([1] * floor(prop[0] * N) +
+		# 		[4] * floor(prop[1] * N) +
+		# 		[7] * (N - floor(prop[0] * N) - floor(prop[1] * N))
+		# 		)
+		# sqrt_R = np.sqrt(R_N)
+		X_N = compute_X_N(N, n)
+		Σ_n_star_Σ_n = 1 / n * X_N.T @ R_N @ X_N
+		eig_vals_Σ_star_Σ = np.linalg.eigvalsh(Σ_n_star_Σ_n)
+		#  besoin d’ enlèver les 0 ?  la matrice est de taille n×n et N<n
+		eig_vals_Σ_star_Σ = np.round(eig_vals_Σ_star_Σ, 6)
+		# eig_vals_Σ_star_Σ = eig_vals_Σ_star_Σ[eig_vals_Σ_star_Σ != 0]
+		# print(f"{len(eig_vals_Σ_star_Σ)=}")
+		a = np.sqrt(1 / n * eig_vals_Σ_star_Σ)
+		matrix_g = np.diag(eig_vals_Σ_star_Σ) - np.outer(a, a)
+		eigvals_matrix_g = np.linalg.eigvalsh(matrix_g)
 
-	eigvals_matrix_g = np.round(eigvals_matrix_g, 6)
-	eigvals_matrix_g = eigvals_matrix_g[eigvals_matrix_g != 0]
+		eigvals_matrix_g = np.round(eigvals_matrix_g, 6)
+		# on enlève les 0
+		# eigvals_matrix_g = eigvals_matrix_g[eigvals_matrix_g != 0]
+
+		assert len(eig_vals_Σ_star_Σ) == n
+		assert len(eigvals_matrix_g) == n
+		# print(f"{eigvals_matrix_g=}")
+		# print(f"{eig_vals_Σ_star_Σ=}")
+		assert (eigvals_matrix_g <= eig_vals_Σ_star_Σ).all()
+		diff_eig_vals = eig_vals_Σ_star_Σ - eigvals_matrix_g
+
+		# print(f"{diff_eig_vals}")
+		def estimateur(i):
+			if i == 0:
+				return n / (N * prop[0]) * np.sum(diff_eig_vals[n - N + N1:n - N + N2])
+			elif i == 1:
+				return n / (N * prop[1]) * np.sum(diff_eig_vals[n - N + N2:n - N + N3])
+			else:
+				return n / (N * prop[2]) * np.sum(diff_eig_vals[n - N + N3:])
+
+		return estimateur(i=i)
+
+	n_iters = 10
+	i = 1
+	ls_EQM = []
+	ls_N = np.array([2 ** i for i in range(6, 9)])
+	for N in ls_N:
+		ls_res_estimateurs = []
+		for _ in tqdm(range(n_iters)):
+			ls_res_estimateurs.append(iteration(N=N, i=i))
+		# print(ls_res_estimateurs)
+		# plt.hist(ls_res_estimateurs)
+		# plt.axvline(1, color="red")
+		# plt.show()
+		erreur_quadratique = (np.array(ls_res_estimateurs) - 1) ** 2
+		ls_EQM.append(np.mean(erreur_quadratique))
+	# print(f"EQM = {np.mean(erreur_quadratique)}")
+	plt.plot(ls_N,
+			 ls_EQM,
+			 ".-")
+	plt.show()
+
+
+# print(f"{n / (N * prop[0]) * np.sum(diff_eig_vals[n-N+N1:n-N+N2])=}")
+# print(f"{n / (N * prop[1]) * np.sum(diff_eig_vals[n - N + N2:n - N + N3])=}")
+# print(f"{n / (N * prop[2]) * np.sum(diff_eig_vals[n - N + N3:])=}")
 
 
 def main():
-	exo2()
+	exo3()
 	return
 
 
