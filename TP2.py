@@ -1,51 +1,107 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.testing as npt
+import math
 
 
 def model(q, M, cardinaux_classes):
 	# q is a column… or not
 	n = len(q)
+	K = len(cardinaux_classes)
 	appartenances = np.concatenate([[i] * cardinaux_classes[i] for i in range(len(cardinaux_classes))])
 	np.random.shuffle(appartenances)
 	# print(appartenances)
 	C = 1 + 1 / np.sqrt(n) * M
 	E = np.outer(q, q) * C[appartenances, :][:, appartenances]
+	assert (E >= 0).all()
+	assert (E <= 1).all()
 	A = np.random.binomial(n=1, p=E)
 	# np.fill_diagonal(A, 0)
 	A = np.triu(A, k=1) + np.triu(A, k=1).T
 	B = A - np.outer(q, q)
-	val_p = np.linalg.eigvalsh(1 / np.sqrt(n) * B)
-	return val_p
+	val_p, vect_p = np.linalg.eigh(1 / np.sqrt(n) * B)
+	J = np.zeros((n, K))
+	J[np.arange(n), appartenances] = 1
+	npt.assert_allclose(J @ C @ J.T, C[appartenances, :][:, appartenances])
+	return val_p, vect_p.T, J
 
 
-def observations_préliminaires():
+def observations_preliminaires():
 	# K = 3
-	n = 600
-	q0 = 0.1
+	n = 1000
+	q0 = 0.05
 	ls_eps = [i * .1 * min(q0, (1 - q0)) for i in range(1, 4)]  # [.1, .2, .3]
-	ls_q1_q2 = [(.4, .6), (.2, .8), (.3, .7)]
+	ls_q1_q2 = [(.4, .6), (0.2, 0.8), (.3, .7)]
 	ls_q = [q0 * np.ones(n)] + \
 		   [(q0 - eps) + 2 * eps * np.random.rand(n) for eps in ls_eps] + \
 		   [np.random.choice([q1, q2], n) for q1, q2 in ls_q1_q2]
-	ls_M = [np.array([[10, eta2, eta1], [eta2, 10, eta1], [eta1, eta1, 10]])
+	diag_M = 15
+	ls_M = [np.array([[diag_M, eta2, eta1], [eta2, diag_M+1, eta1], [eta1, eta1, diag_M+2]])
 			for eta1, eta2 in [(.1, .9), (.3, .6), (.0, .0)]]
 	cardinaux_classes = [n // 3, n // 3, n - 2 * (n // 3)]
 	fig, axes = plt.subplots(len(ls_q), len(ls_M))
 	for i, q in enumerate(ls_q):
 		for j, M in enumerate(ls_M):
-			eig_vals = model(q, M, cardinaux_classes)
+			eig_vals, eig_vects, J = model(q, M, cardinaux_classes)
 			axes[i, j].hist(eig_vals, bins=n // 10)  # , density=True)
 			axes[i, j].set_title(f"{i, j}")
 			print(f"({i},{j})")
-			print(f"{np.max(eig_vals)}")
+			print(f"{np.max(eig_vals)=}")
+			print(eig_vects[-3:] @ J)
+	plt.show()
+	# print(axes.shape)
+	# axes[i,j].plot()
+	return
+
+def compute_isolated_eigvals(q0, M, prop_classes):
+	diag_M = np.diagonal(M)
+	sigma = math.sqrt(q0**2*(1-q0**2))
+	rho = q0**2/sigma * diag_M * prop_classes
+	return sigma*(rho + 1/rho)[rho > 1], rho
+
+def cas_homogene():
+	n = 1000
+	ls_q0 = np.linspace(0.1, 0.3, num=4)
+	ls_q = [q0 * np.ones(n) for q0 in ls_q0]
+	ls_diag_M = [10, 12, 15]
+	ls_M = [np.diagflat([diag_M, diag_M+1, diag_M+2]) for diag_M in ls_diag_M]
+	prop_classes = [1/4, 1/4, 1/2]
+	cardinaux_classes = [int(round(n * prop)) for prop in prop_classes[:-1]]
+	cardinaux_classes.append(n - sum(cardinaux_classes))
+	cardinaux_classes = np.array(cardinaux_classes)
+	fig, axes = plt.subplots(len(ls_q), len(ls_M), constrained_layout=True)
+	for i, q in enumerate(ls_q):
+		for j, M in enumerate(ls_M):
+			print(f"({i=},{j=})")
+			print(f"q0={q[0]} M = diag({np.diagonal(M)})")
+			eig_vals, eig_vects, J = model(q, M, cardinaux_classes)
+			isolated_eigvals, rho = compute_isolated_eigvals(q[0], M, prop_classes)
+			print(f"{np.max(eig_vals)=}")
+			print(f"{isolated_eigvals=}")
+			axes[i, j].hist(eig_vals, bins=n // 10)  # , density=True)
+			sigma = math.sqrt(q[0]**2*(1-q[0]**2))
+			axes[i, j].set_title(f"q0={q[0]:.2f} 2$\sigma$={2*sigma:.2f} M=diag({np.diagonal(M)})")
+			for isolated_eigval in isolated_eigvals:
+				axes[i, j].axvline(isolated_eigval, color='red', label=f"{isolated_eigval:.2f}")
+			axes[i, j].axvline(2*sigma, color='green', label=f"2$\sigma$={2*sigma:.2f}")
+
+			isolated_eigvect = eig_vects[-1]
+			normalized_J = J/np.sqrt(cardinaux_classes[None,:])
+			observed = np.abs(isolated_eigvect @ normalized_J)
+			predicted = np.diagflat(np.sqrt(1 - 1/rho**2))[-1]
+			print(f"Observed =\n{observed}")
+			print(f"Predicted =\n{predicted}")
+	plt.legend()
 	plt.show()
 	# print(axes.shape)
 	# axes[i,j].plot()
 	return
 
 
+
 def main():
-	observations_préliminaires()
+	#observations_preliminaires()
+	cas_homogene()
 	return
 
 
