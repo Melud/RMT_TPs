@@ -138,12 +138,47 @@ def community_detection_homogeneous():
 			print(f"Precision = {p*100}%")
 	return
 
+def community_detection_heterogeneous():
+	n = 2000
+	q0 = 0.4
+	ls_q1_q2 = [(0.01, 0.8)]
+	ls_q = \
+		[np.random.choice([q1, q2], n) for q1, q2 in ls_q1_q2]
+	K = 3
+	ls_diag_M = [20]
+	ls_M = [np.diagflat([diag_M, diag_M+1, diag_M+2]) for diag_M in ls_diag_M]
+	prop_classes = [1/4, 1/4, 1/2]
+	cardinaux_classes = [int(round(n * prop)) for prop in prop_classes[:-1]]
+	cardinaux_classes.append(n - sum(cardinaux_classes))
+	cardinaux_classes = np.array(cardinaux_classes)
+	for i, q in enumerate(ls_q):
+		for j, M in enumerate(ls_M):
+			print(f"({i=},{j=})")
+			print(f"{q=} M = diag({np.diagonal(M)})")
+			memberships, aff_matrix, eig_vals, _, J = model(q, M, cardinaux_classes, eigvects=False)
+
+			inferred_memberships = spectral_clustering(aff_matrix, K, K, tol=1e-7)
+			p = precision(K, memberships, inferred_memberships)
+			print(f"Precision = {p*100}%")
+
+			inferred_memberships = spectral_clustering(1/q[:, None] * aff_matrix * 1/q[None, :], K, K, tol=1e-7, reg_sigma=1e-16)
+			p = precision(K, memberships, inferred_memberships)
+			print(f"Improved method 1: Precision = {p*100}%")
+
+			renormalize = lambda eigenvectors : np.sqrt(1/q[:, None]) * eigenvectors
+			inferred_memberships = spectral_clustering(1/q[:, None] * aff_matrix * 1/q[None, :],
+									K, K, renormalize=renormalize, tol=1e-7, reg_sigma=1e-16)
+			p = precision(K, memberships, inferred_memberships)
+			print(f"Improved method 2: Precision = {p*100}%")
+	return
+
 
 
 def main():
 	#observations_preliminaires()
 	#cas_homogene()
-	community_detection_homogeneous()
+	#community_detection_homogeneous()
+	community_detection_heterogeneous()
 	return
 
 

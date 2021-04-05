@@ -202,13 +202,17 @@ def GMM(x, k, tol=1e-5, reg_sigma=0, reg_init_tau=1e-15):
 
     return theta_est, cluster_membership, log_likelihoods
 
-def spectral_clustering(affinity_matrix, k, n_eigenvectors, **kwargs):
+def spectral_clustering(affinity_matrix, k, n_eigenvectors, renormalize=None, **kwargs):
 	n, _ = affinity_matrix.shape
 	assert affinity_matrix.shape == (n, n)
 	assert n_eigenvectors <= n
 
 	_, eigenvectors = scipy.linalg.eigh(affinity_matrix, subset_by_index=(n-n_eigenvectors, n-1))
 	assert eigenvectors.shape == (n, n_eigenvectors)
+
+	if renormalize is not None:
+		eigenvectors = renormalize(eigenvectors)
+		assert eigenvectors.shape == (n, n_eigenvectors)
 
 	_, cluster_membership, _ = GMM(eigenvectors, k, **kwargs)
 	assert cluster_membership.shape == (n,)
