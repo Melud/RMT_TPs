@@ -1,10 +1,16 @@
 import matplotlib.pyplot as plt
+import tikzplotlib
 import numpy as np
 import numpy.testing as npt
+import scipy
+import scipy.linalg
 import math
 
+from em_algorithm import spectral_clustering
+from test_em import most_frequent
 
-def model(q, M, cardinaux_classes):
+
+def model(q, M, cardinaux_classes, eigvects=True):
 	# q is a column… or not
 	n = len(q)
 	K = len(cardinaux_classes)
@@ -19,11 +25,15 @@ def model(q, M, cardinaux_classes):
 	# np.fill_diagonal(A, 0)
 	A = np.triu(A, k=1) + np.triu(A, k=1).T
 	B = A - np.outer(q, q)
-	val_p, vect_p = np.linalg.eigh(1 / np.sqrt(n) * B)
+	if eigvects:
+		val_p, vect_p = np.linalg.eigh(1 / np.sqrt(n) * B)
+		vect_p = vect_p.T
+	else:
+		val_p, vect_p = np.linalg.eigvalsh(1 / np.sqrt(n) * B), None
 	J = np.zeros((n, K))
 	J[np.arange(n), appartenances] = 1
 	npt.assert_allclose(J @ C @ J.T, C[appartenances, :][:, appartenances])
-	return val_p, vect_p.T, J
+	return appartenances, 1 / np.sqrt(n) * B, val_p, vect_p, J
 
 
 def observations_preliminaires():
@@ -42,7 +52,7 @@ def observations_preliminaires():
 	fig, axes = plt.subplots(len(ls_q), len(ls_M))
 	for i, q in enumerate(ls_q):
 		for j, M in enumerate(ls_M):
-			eig_vals, eig_vects, J = model(q, M, cardinaux_classes)
+			_, _, eig_vals, eig_vects, J = model(q, M, cardinaux_classes)
 			axes[i, j].hist(eig_vals, bins=n // 10)  # , density=True)
 			axes[i, j].set_title(f"{i, j}")
 			print(f"({i},{j})")
@@ -63,6 +73,7 @@ def cas_homogene():
 	n = 1000
 	ls_q0 = np.linspace(0.1, 0.3, num=4)
 	ls_q = [q0 * np.ones(n) for q0 in ls_q0]
+	K = 3
 	ls_diag_M = [10, 12, 15]
 	ls_M = [np.diagflat([diag_M, diag_M+1, diag_M+2]) for diag_M in ls_diag_M]
 	prop_classes = [1/4, 1/4, 1/2]
@@ -73,35 +84,66 @@ def cas_homogene():
 	for i, q in enumerate(ls_q):
 		for j, M in enumerate(ls_M):
 			print(f"({i=},{j=})")
-			print(f"q0={q[0]} M = diag({np.diagonal(M)})")
-			eig_vals, eig_vects, J = model(q, M, cardinaux_classes)
+			print(f"$q_0$={q[0]} M = diag({np.diagonal(M)})")
+			memberships, aff_matrix, eig_vals, _, J = model(q, M, cardinaux_classes, eigvects=False)
 			isolated_eigvals, rho = compute_isolated_eigvals(q[0], M, prop_classes)
 			print(f"{np.max(eig_vals)=}")
 			print(f"{isolated_eigvals=}")
 			axes[i, j].hist(eig_vals, bins=n // 10)  # , density=True)
 			sigma = math.sqrt(q[0]**2*(1-q[0]**2))
-			axes[i, j].set_title(f"q0={q[0]:.2f} 2$\sigma$={2*sigma:.2f} M=diag({np.diagonal(M)})")
+			axes[i, j].set_title(f"$q_0$={q[0]:.2f} 2$\sigma$={2*sigma:.2f} M=diag({np.diagonal(M)})")
 			for isolated_eigval in isolated_eigvals:
 				axes[i, j].axvline(isolated_eigval, color='red', label=f"{isolated_eigval:.2f}")
 			axes[i, j].axvline(2*sigma, color='green', label=f"2$\sigma$={2*sigma:.2f}")
 
-			isolated_eigvect = eig_vects[-1]
+			_, isolated_eigvect = scipy.linalg.eigh(aff_matrix, subset_by_index=(n-1,n-1))
 			normalized_J = J/np.sqrt(cardinaux_classes[None,:])
-			observed = np.abs(isolated_eigvect @ normalized_J)
+			observed = np.abs(isolated_eigvect[:,0] @ normalized_J)
 			predicted = np.diagflat(np.sqrt(1 - 1/rho**2))[-1]
 			print(f"Observed =\n{observed}")
 			print(f"Predicted =\n{predicted}")
-	plt.legend()
-	plt.show()
-	# print(axes.shape)
-	# axes[i,j].plot()
+	#plt.show()
+	tikzplotlib.save('test.tex')
+	return
+
+def precision(k, memberships, inferred_memberships):
+	inferred_cluster_indices = [
+			most_frequent(inferred_memberships[memberships == i]) for i in range(k)
+			]
+	errors = [
+			np.sum(inferred_memberships[memberships == i] == inferred_cluster_indices[i])
+			for i in range(k)
+			]
+	return sum(errors)/len(memberships)
+
+def community_detection_homogeneous():
+	n = 2000
+	ls_q0 = [0.3, 0.4, 0.5]
+	ls_q = [q0 * np.ones(n) for q0 in ls_q0]
+	K = 3
+	ls_diag_M = [15, 17.5, 20]
+	ls_M = [np.diagflat([diag_M, diag_M+1, diag_M+2]) for diag_M in ls_diag_M]
+	prop_classes = [1/4, 1/4, 1/2]
+	cardinaux_classes = [int(round(n * prop)) for prop in prop_classes[:-1]]
+	cardinaux_classes.append(n - sum(cardinaux_classes))
+	cardinaux_classes = np.array(cardinaux_classes)
+	for i, q in enumerate(ls_q):
+		for j, M in enumerate(ls_M):
+			print(f"({i=},{j=})")
+			print(f"$q_0$={q[0]} M = diag({np.diagonal(M)})")
+			memberships, aff_matrix, eig_vals, _, J = model(q, M, cardinaux_classes, eigvects=False)
+
+			inferred_memberships = spectral_clustering(aff_matrix, K, K, tol=1e-7)
+			p = precision(K, memberships, inferred_memberships)
+			print(f"Precision = {p*100}%")
 	return
 
 
 
 def main():
 	#observations_preliminaires()
-	cas_homogene()
+	#cas_homogene()
+	community_detection_homogeneous()
 	return
 
 
