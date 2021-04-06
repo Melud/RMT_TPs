@@ -116,3 +116,4 @@ dmypy.json
 
 .idea/
 exo2_plots.tex
+*.tex
