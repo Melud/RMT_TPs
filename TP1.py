@@ -417,28 +417,25 @@ def exo4():
 	diff_eig_vals = eig_vals_Σ_star_Σ - eigvals_matrix_g
 
 	def g_prime(array_λ, x):
-		return np.sum(1 / (array_λ - x) ** 2)
+		return 1/n*np.sum(1 / (array_λ - x) ** 2)
 
 	A = n / N * np.sum(diff_eig_vals)
 	B = n / N * np.sum([1 / g_prime(eig_vals_Σ_star_Σ[eig_vals_Σ_star_Σ != 0], x)
 						for x in eigvals_matrix_g[eigvals_matrix_g != 0]])
 	# A = 1
 	# B = 200
-	print(f"{A=}")
-	print(f"{B=}")
-	sqrt_Δ = np.sqrt(0 * 1j + prop[0] / prop[1] * (B - A ** 2))
-	print(f"{sqrt_Δ=}")
+	# print(f"{A=}")
+	# print(f"{B=}")
+	sqrt_Δ = np.sqrt(prop[0] / prop[1] * (B - A ** 2))#0 * 1j +
+	# print(f"{sqrt_Δ=}")
 	est_λ_1 = A + sqrt_Δ
 	est_λ_2 = A - prop[1] / prop[0] * sqrt_Δ
 	print(f"{est_λ_1=}"
 		  f"\n"
 		  f"{est_λ_2=}")
 
-	est_λ_1 = 4
-	est_λ_2 = 1
-
-	print(prop[0] * est_λ_1 + prop[1] * est_λ_2)
-	print(prop[0] * est_λ_1 ** 2 + prop[1] * est_λ_2 ** 2)
+	# print(prop[0] * est_λ_1 + prop[1] * est_λ_2)
+	# print(prop[0] * est_λ_1 ** 2 + prop[1] * est_λ_2 ** 2)
 	return
 
 
