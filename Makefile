@@ -1,6 +1,6 @@
 .PHONY: all run debug
 
-MAIN := TP2.py
+MAIN := TP1.py
 
 all:
 	pytype $(MAIN)

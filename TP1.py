@@ -25,8 +25,10 @@ def compute_X_N(N, n, distribution=0):
 
 
 def exo1():
-	c = 1e-2
-	N = 100
+# 	c = 1e-2
+# 	N = 100
+	c=0.25
+	N=200
 	n = floor(N / c)
 	R_N = compute_R_N(N, prop=[.5, .5, .0])
 	X_N = compute_X_N(N, n, distribution=0)
@@ -304,7 +306,7 @@ def exo2():
 
 
 def exo3():
-	def iteration(N=100, i=0):
+	def iteration(N=100, i=0, naive=False):
 		c = 1e-1
 		n = floor(N / c)
 		prop = [1 / 3, 1 / 3, 1 / 3]
@@ -329,7 +331,7 @@ def exo3():
 		assert len(eigvals_matrix_g) == n
 
 		assert np.all(eigvals_matrix_g <= eig_vals_Σ_star_Σ)
-		diff_eig_vals = eig_vals_Σ_star_Σ - eigvals_matrix_g
+		diff_eig_vals = eig_vals_Σ_star_Σ - (eigvals_matrix_g if not naive else 0)
 
 		def estimateur(i):
 			if i == 0:
@@ -341,7 +343,7 @@ def exo3():
 
 		return estimateur(i=i)
 
-	n_iters = 30
+	n_iters = 10
 	i = 1
 	if i == 0:
 		eig_val = 1
@@ -350,18 +352,18 @@ def exo3():
 	else:
 		eig_val = 7
 	ls_EQM = []
-	ls_N = np.array([int(1.5 ** i) for i in np.arange(10, 14, 1)])
+	ls_N = np.array([int(1.5 ** i) for i in np.linspace(10, 15, num=10)])
 	for N in ls_N:
 		ls_res_estimateurs = []
 		for _ in tqdm(range(n_iters)):
-			ls_res_estimateurs.append(iteration(N=N, i=i))
+			ls_res_estimateurs.append(iteration(N=N, i=i, naive=False))
 		# print(ls_res_estimateurs)
-		# plt.hist(ls_res_estimateurs)
-		# plt.title(f"estimateurs de la valeur propre {eig_val} ({n_iters} exécutions)",
-		# 		  # fontsize=6
-		# 		  )
-		# plt.axvline(eig_val, color="red")
-		# plt.show()
+		if N == ls_N[0]:
+			plt.hist(ls_res_estimateurs, bins=100)
+			plt.title(f"estimateurs de la valeur propre {eig_val} ({n_iters} exécutions)",
+					  )
+			plt.axvline(eig_val, color="red")
+			tikzplotlib.save('TP1_ex3_hist.tex')
 		erreur_quadratique = (np.array(ls_res_estimateurs) - eig_val) ** 2
 		ls_EQM.append(np.mean(erreur_quadratique))
 	# print(f"EQM = {np.mean(erreur_quadratique)}")
@@ -375,72 +377,90 @@ def exo3():
 	plt.ylabel(r"$\mathbb{E}(|\hat\lambda_{i, N}^R-\lambda_{i}^R|^2)$",
 			   fontsize=13
 			   )
-	plt.show()
-
-
-# tikzplotlib.save('exo3_plots.tex')
-
-
-# print(f"{n / (N * prop[0]) * np.sum(diff_eig_vals[n-N+N1:n-N+N2])=}")
-# print(f"{n / (N * prop[1]) * np.sum(diff_eig_vals[n - N + N2:n - N + N3])=}")
-# print(f"{n / (N * prop[2]) * np.sum(diff_eig_vals[n - N + N3:])=}")
+	#plt.show()
+	tikzplotlib.save('TP1_ex3_EQM.tex')
 
 
 def exo4():
-	c = .35
-	N = 500
-	n = floor(N / c)
-	print(f"{n=}")
-	print(f"{N=}")
-	prop = [1 / 2, 1 / 2, 0]
-	N1 = 0
-	N2 = floor(N * prop[0])
-	# N3 = floor(N * 2 / 3)
-	R_N = compute_R_N(N, prop)
-	X_N = compute_X_N(N, n)
-	Σ_n_star_Σ_n = 1 / n * X_N.T @ R_N @ X_N
-	eig_vals_Σ_star_Σ = np.linalg.eigvalsh(Σ_n_star_Σ_n)
+	def iteration(n, N):
+		prop = [1 / 2, 1 / 2, 0]
+		N1 = 0
+		N2 = floor(N * 1 / 2)
+		R_N = compute_R_N(N, prop)
+		X_N = compute_X_N(N, n)
+		Σ_n_star_Σ_n = 1 / n * X_N.T @ R_N @ X_N
+		eig_vals_Σ_star_Σ = np.linalg.eigvalsh(Σ_n_star_Σ_n)
 
-	#  besoin d’ enlèver les 0 ?  la matrice est de taille n×n et N<n
-	eig_vals_Σ_star_Σ = np.round(eig_vals_Σ_star_Σ, 6)
+		eig_vals_Σ_star_Σ = np.round(eig_vals_Σ_star_Σ, 6)
 
-	a = np.sqrt(1 / n * eig_vals_Σ_star_Σ)
-	matrix_g = np.diag(eig_vals_Σ_star_Σ) - np.outer(a, a)
-	eigvals_matrix_g = np.linalg.eigvalsh(matrix_g)
+		a = np.sqrt(1 / n * eig_vals_Σ_star_Σ)
+		matrix_g = np.diag(eig_vals_Σ_star_Σ) - np.outer(a, a)
+		eigvals_matrix_g = np.linalg.eigvalsh(matrix_g)
 
-	eigvals_matrix_g = np.round(eigvals_matrix_g, 6)
+		eigvals_matrix_g = np.round(eigvals_matrix_g, 6)
 
-	assert len(eig_vals_Σ_star_Σ) == n
-	assert len(eigvals_matrix_g) == n
+		assert len(eig_vals_Σ_star_Σ) == n
+		assert len(eigvals_matrix_g) == n
 
-	assert np.all(eigvals_matrix_g <= eig_vals_Σ_star_Σ)
-	diff_eig_vals = eig_vals_Σ_star_Σ - eigvals_matrix_g
+		assert np.all(eigvals_matrix_g <= eig_vals_Σ_star_Σ)
+		diff_eig_vals = eig_vals_Σ_star_Σ - eigvals_matrix_g
 
-	def g_prime(array_λ, x):
-		return 1/n*np.sum(1 / (array_λ - x) ** 2)
+		def g_prime(array_λ, x):
+			return 1/n*np.sum(1 / (array_λ - x) ** 2)
 
-	A = n / N * np.sum(diff_eig_vals)
-	B = n / N * np.sum([1 / g_prime(eig_vals_Σ_star_Σ[eig_vals_Σ_star_Σ != 0], x)
-						for x in eigvals_matrix_g[eigvals_matrix_g != 0]])
-	# A = 1
-	# B = 200
-	# print(f"{A=}")
-	# print(f"{B=}")
-	sqrt_Δ = np.sqrt(prop[0] / prop[1] * (B - A ** 2))#0 * 1j +
-	# print(f"{sqrt_Δ=}")
-	est_λ_1 = A + sqrt_Δ
-	est_λ_2 = A - prop[1] / prop[0] * sqrt_Δ
-	print(f"{est_λ_1=}"
-		  f"\n"
-		  f"{est_λ_2=}")
+		A = n / N * np.sum(diff_eig_vals)
+		B = n / N * np.sum([1 / g_prime(eig_vals_Σ_star_Σ[eig_vals_Σ_star_Σ != 0], x)
+							for x in eigvals_matrix_g[eigvals_matrix_g != 0]])
+		# A = 1
+		# B = 200
+		# print(f"{A=}")
+		# print(f"{B=}")
+		sqrt_Δ = np.sqrt(prop[0] / prop[1] * (B - A ** 2))#0 * 1j +
+		# print(f"{sqrt_Δ=}")
+		check_est_2 = A + sqrt_Δ
+		check_est_1 = A - prop[1] / prop[0] * sqrt_Δ
+		#print(check_est_1, check_est_2)
 
-	# print(prop[0] * est_λ_1 + prop[1] * est_λ_2)
-	# print(prop[0] * est_λ_1 ** 2 + prop[1] * est_λ_2 ** 2)
+		hat_est_1 = n / (N * prop[0]) * np.sum(diff_eig_vals[n - N :n - N + N2])
+		hat_est_2 = n / (N * prop[1]) * np.sum(diff_eig_vals[n - N + N2:])
+		return check_est_1, check_est_2, hat_est_1, hat_est_2
+
+	N = 200
+	ls_c = np.linspace(0.3, 1, num=15)
+	n_iters = 10
+	ls_EQM = []
+	eigvals = np.array([1,4,1,4])
+	for c in ls_c:
+		n = floor(N / c)
+		ls_res = np.empty((4, n_iters))
+		for it in tqdm(range(n_iters)):
+			res = iteration(N=N, n=n)
+			ls_res[:,it] = res
+# 		print(ls_res)
+# 		print(np.mean(ls_res, axis=-1))
+# 		print(eigvals)
+		erreur_quadratique = (np.array(ls_res) - eigvals[:, None]) ** 2
+		ls_EQM.append(np.mean(erreur_quadratique, axis=-1))
+		assert ls_EQM[-1].shape == (4,)
+	eqm = np.array(ls_EQM)
+	fig, ax = plt.subplots(1, 1)
+	ax.plot(ls_c, eqm[:,2], label=r"$\mathbb{E}(|\hat\lambda_{1, N}^R-\lambda_{1}^R|^2)$")
+	color = ax.lines[-1].get_color()
+	ax.plot(ls_c, eqm[:,0], label=r"$\mathbb{E}(|\check\lambda_{1, N}^R-\lambda_{1}^R|^2)$", color=color, linestyle='dashed')
+
+	ax.plot(ls_c, eqm[:,3], label=r"$\mathbb{E}(|\hat\lambda_{2, N}^R-\lambda_{2}^R|^2)$")
+	color = ax.lines[-1].get_color()
+	ax.plot(ls_c, eqm[:,1], label=r"$\mathbb{E}(|\check\lambda_{2, N}^R-\lambda_{2}^R|^2)$", color=color, linestyle='dashed')
+	ax.set_xlabel("$c$")
+	plt.title(f"Erreur quadratique moyenne ({n_iters} itérations)")
+	ax.legend()
+	#plt.show()
+	tikzplotlib.save('TP1_ex4_EQM_check.tex')
 	return
 
 
 def main():
-	exo4()
+	exo3()
 	return
 
 
