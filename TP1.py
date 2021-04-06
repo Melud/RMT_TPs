@@ -25,8 +25,8 @@ def compute_X_N(N, n, distribution=0):
 
 
 def exo1():
-	c = .35
-	N = 500
+	c = 1e-2
+	N = 100
 	n = floor(N / c)
 	R_N = compute_R_N(N, prop=[.5, .5, .0])
 	X_N = compute_X_N(N, n, distribution=0)
